@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import 'dotenv/config';
+import { config } from 'dotenv';
+config();
+
 import noteRoutes from './routes/notes.js';
+import adminRoutes from './routes/admin.js';
 import { prisma } from './lib/prisma.js';
 
 const app = express();
@@ -30,6 +33,7 @@ app.use(express.json({ limit: '10kb' }));
 
 // Routes
 app.use('/api/notes', noteRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health Check
 app.get('/', (req, res) => res.send('Stuck on You API is running!'));

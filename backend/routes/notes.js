@@ -3,6 +3,8 @@ import express from 'express';
 import { prisma } from '../lib/prisma.js';
 import { rateLimit } from 'express-rate-limit';
 import { isOffensive } from '../lib/filter.js';
+import { containsUrl } from '../lib/validation.js';
+import { verifyTurnstile } from '../lib/turnstile.js';
 
 const router = express.Router();
 
@@ -78,6 +80,19 @@ router.get('/', readLimiter, async (req, res) => {
 router.post('/', submitLimiter, async (req, res) => {
   const body = req.body ?? {};
 
+  // --- CAPTCHA (Cloudflare Turnstile) ---
+  try {
+    const token = typeof body.turnstileToken === 'string' ? body.turnstileToken : '';
+    const ip =
+      req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    if (!(await verifyTurnstile(token, ip))) {
+      return res.status(400).json({ error: 'Please complete the captcha.' });
+    }
+  } catch (err) {
+    console.error('Turnstile check failed:', err);
+    return res.status(400).json({ error: 'Captcha verification failed.' });
+  }
+
   // --- Validation ---
   if (typeof body.message !== 'string' || body.message.trim().length === 0) {
     return res.status(400).json({ error: 'Message is required.' });
@@ -99,6 +114,11 @@ router.post('/', submitLimiter, async (req, res) => {
   }
   if (alias && alias.length > LIMITS.alias) {
     return res.status(400).json({ error: `Alias must be ${LIMITS.alias} characters or fewer.` });
+  }
+
+  // --- Block links / URLs (spam reduction) ---
+  if (containsUrl(message) || containsUrl(to_name ?? '') || containsUrl(alias ?? '')) {
+    return res.status(400).json({ error: 'Links are not allowed in notes.' });
   }
 
   const color = typeof body.color === 'string' ? body.color.toLowerCase() : '#fffffc';

@@ -50,6 +50,10 @@ PORT=5000
 NODE_ENV=development
 DATABASE_URL=postgres://avnadmin:password@host.aivencloud.com:12345/defaultdb?sslmode=require
 
+# Anti-spam / admin
+ADMIN_TOKEN=generate-a-long-random-string
+TURNSTILE_SECRET_KEY=your-cloudflare-turnstile-secret-key
+
 ```
 
 Run the Prisma migration to create the database tables:
@@ -82,6 +86,7 @@ Create a `.env` file in the `frontend` directory:
 
 ```env
 VITE_API_URL=http://localhost:5000
+VITE_TURNSTILE_SITE_KEY=your-cloudflare-turnstile-site-key
 
 ```
 

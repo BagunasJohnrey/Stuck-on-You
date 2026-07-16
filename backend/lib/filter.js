@@ -1,6 +1,6 @@
 // backend/lib/filter.js
 
-import { supabase } from './supabase.js';
+import { prisma } from './prisma.js';
 import natural from 'natural';
 
 let bannedWordsCache = [];
@@ -8,36 +8,37 @@ let lastFetched = 0;
 
 const getBannedWords = async () => {
   const now = Date.now();
-  // 10-second cache refresh as requested
+  // 10-second cache refresh
   if (bannedWordsCache.length > 0 && now - lastFetched < 10000) {
     return bannedWordsCache;
   }
 
-  const { data } = await supabase.from('prohibited_words').select('word');
-  bannedWordsCache = data?.map(row => row.word.toLowerCase()) || [];
-  lastFetched = now;
+  try {
+    const rows = await prisma.prohibitedWord.findMany({ select: { word: true } });
+    bannedWordsCache = rows.map((row) => row.word.toLowerCase());
+    lastFetched = now;
+  } catch (err) {
+    // On DB error, fall back to the last known cache so the filter never crashes
+    // the request path. Log for observability.
+    console.error('Failed to load prohibited words:', err);
+  }
   return bannedWordsCache;
 };
 
-/**
- * Enhanced normalization to catch accent and special character substitutions.
- */
+// Enhanced normalization to catch accent and special character substitutions.
 const normalizeText = (text) => {
   if (!text) return '';
   
   return text
     .toLowerCase()
-    /**
-     * 1. Remove Accents/Diacritics
-     * Decomposes combined characters (like 'ñ' to 'n' + '~') and removes the marks.
-     */
+    
+    // 1. Remove Accents/Diacritics
+    // Decomposes combined characters (like 'ñ' to 'n' + '~') and removes the marks.
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') 
 
-    /**
-     * 2. Comprehensive Special Character & Leetspeak Mapping
-     * Replaces symbols that look like letters.
-     */
+    // 2. Comprehensive Special Character & Leetspeak Mapping
+    // Replaces symbols that look like letters.
     .replace(/[04@Âåâãàáä]/g, 'a')
     .replace(/[3€êëèé]/g, 'e')
     .replace(/[1!|¡ïîìí]/g, 'i')
@@ -50,10 +51,8 @@ const normalizeText = (text) => {
     .replace(/ñ/g, 'n')
     .replace(/ç/g, 'c')
     
-    /**
-     * 3. Clean up
-     * Removes all remaining non-alphabetic characters.
-     */
+    // 3. Clean up
+    // Removes all remaining non-alphabetic characters.
     .replace(/[^a-z\s]/g, '');
 };
 
@@ -86,8 +85,24 @@ export const isOffensive = async (text) => {
   const spacelessText = cleanText.replace(/\s+/g, '');
   const reversedSpaceless = spacelessText.split('').reverse().join('');
 
-  return bannedWords.some(banned => {
-    if (banned.length < 3) return false; 
+  const singleWords = bannedWords.filter(b => !b.includes(' '));
+  const phrases = bannedWords.filter(b => b.includes(' '));
+
+  // Single-word check (existing behavior).
+  const hasBannedWord = singleWords.some(banned => {
+    if (banned.length < 3) return false;
     return spacelessText.includes(banned) || reversedSpaceless.includes(banned);
+  });
+
+  if (hasBannedWord) return true;
+
+  // Check 3: Multi-word phrase match (e.g. "mag kano", "putang ina").
+  // Collapse spaces in both the phrase and the text so spacing tricks
+  // (extra spaces, missing spaces) still match.
+  return phrases.some(phrase => {
+    const normPhrase = phrase.replace(/\s+/g, ' ').trim();
+    if (normPhrase.length < 3) return false;
+    const spacelessPhrase = normPhrase.replace(/\s+/g, '');
+    return spacelessText.includes(spacelessPhrase) || reversedSpaceless.includes(spacelessPhrase);
   });
 };

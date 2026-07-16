@@ -23,15 +23,15 @@
 
 * **Runtime**: [Node.js](https://nodejs.org/)
 * **Framework**: [Express.js](https://expressjs.com/)
-* **Database**: [Supabase](https://supabase.com/)
-* **Security**: [express-rate-limit](https://www.npmjs.com/package/express-rate-limit)
+* **Database**: [Aiven for PostgreSQL](https://aiven.io/) via [Prisma ORM](https://www.prisma.io/)
+* **Security**: [helmet](https://www.npmjs.com/package/helmet), [express-rate-limit](https://www.npmjs.com/package/express-rate-limit)
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 * Node.js installed on your machine.
-* A Supabase project set up for the database.
+* An Aiven for PostgreSQL service set up for the database.
 
 ### 1. Backend Setup
 
@@ -47,8 +47,15 @@ Create a `.env` file in the `backend` directory with the following variables:
 
 ```env
 PORT=5000
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+NODE_ENV=development
+DATABASE_URL=postgres://avnadmin:password@host.aivencloud.com:12345/defaultdb?sslmode=require
+
+```
+
+Run the Prisma migration to create the database tables:
+
+```bash
+npx prisma migrate dev --name init
 
 ```
 

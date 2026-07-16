@@ -147,19 +147,19 @@ const Submit = () => {
     >
       <Navbar />
 
-      <div className="w-full max-w-lg">
-        {/* Sticky Note Form Container */}
-        <div
-          className="relative w-full aspect-square sm:aspect-[4/5] shadow-2xl p-8 flex flex-col transition-colors duration-300 transform rotate-1"
-          style={{
-            backgroundColor: formData.color,
-            fontFamily: '"Caveat", cursive',
-          }}
-        >
+        <div className="w-full max-w-lg px-2">
+          {/* Sticky Note Form Container */}
+          <div
+            className="relative w-full sm:aspect-[4/5] shadow-2xl flex flex-col transition-colors duration-300 transform rotate-1"
+            style={{
+              backgroundColor: formData.color,
+              fontFamily: '"Caveat", cursive',
+            }}
+          >
           {/* Tape Visual */}
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20"></div>
 
-          <form onSubmit={handleSubmit} className="h-full flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="h-full max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none] flex flex-col gap-4 p-6 sm:p-8">
 
             {/* Header */}
             <h1 className="text-3xl font-bold text-black/70 text-center mb-2">Write a Note</h1>
@@ -186,7 +186,7 @@ const Submit = () => {
             </div>
 
             {/* Message Field */}
-            <div className="flex flex-col flex-grow relative">
+            <div className="flex flex-col flex-grow min-h-0 relative">
               <label className="text-xl font-bold text-black/60 pl-1">Message:</label>
               <textarea
                 name="message"
@@ -195,7 +195,7 @@ const Submit = () => {
                 required
                 maxLength={MAX_CHARS}
                 placeholder="Type your message here..."
-                className="w-full h-full bg-transparent resize-none outline-none text-2xl leading-relaxed p-2 placeholder:text-black/20"
+                className="w-full flex-grow min-h-[6rem] sm:min-h-0 bg-transparent resize-none outline-none text-2xl leading-relaxed p-2 placeholder:text-black/20 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]"
               />
               {/* Character Counter */}
               <div className={`absolute bottom-0 right-0 text-sm font-bold font-sans pointer-events-none transition-colors ${
@@ -222,8 +222,8 @@ const Submit = () => {
             </div>
 
             {/* Color Picker */}
-            <div className="flex justify-between items-center mt-2 pt-4 border-t border-black/5">
-              <div className="flex gap-2 flex-wrap max-w-[70%]">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 pt-4 border-t border-black/5 gap-3">
+              <div className="flex gap-2 flex-wrap justify-center sm:justify-start max-w-full sm:max-w-[70%]">
                 {colors.map((c) => (
                   <button
                     key={c}
@@ -238,7 +238,7 @@ const Submit = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 justify-center sm:justify-end">
                 <button
                   type="button"
                   onClick={() => navigate('/browse')}
@@ -272,7 +272,7 @@ const Submit = () => {
           onClick={closeConfirm}
         >
           <div
-            className="relative w-full max-w-sm shadow-2xl px-8 py-6 flex flex-col transform rotate-1"
+            className="relative w-[calc(100%-2rem)] max-w-sm shadow-2xl transform rotate-1"
             style={{
               backgroundColor: formData.color,
               fontFamily: '"Caveat", cursive',
@@ -282,56 +282,57 @@ const Submit = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Tape Visual */}
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20"></div>
-
             <button
               onClick={closeConfirm}
-              className="absolute top-2 right-2 p-2 hover:bg-black/10 rounded-full transition-colors text-black/50 hover:text-black"
+              className="absolute top-2 right-2 z-10 p-2 hover:bg-black/10 rounded-full transition-colors text-black/50 hover:text-black"
             >
               <X size={24} />
             </button>
 
-            <h2 className="text-2xl font-bold text-black/70 text-center mb-0 mt-2">Confirm your note</h2>
-            <p className="text-center text-black/50 text-base mb-1">
-              Verify you're human before posting.
-            </p>
-            <p className="text-center text-black/50 text-base mb-1">
-              ** For safety lang po, baka i-spam niyo eh. **
-            </p>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20"></div>
 
-            {/* Captcha lives inside the sticky-note modal */}
-            {TURNSTILE_SITE_KEY && (
-              <div id="turnstile-widget" className="flex justify-center min-h-[65px] my-2"></div>
-            )}
+            <div className="w-full max-h-[85vh] overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+              <h2 className="text-2xl font-bold text-black/70 text-center mb-0 mt-4">Confirm your note</h2>
+              <p className="text-center text-black/50 text-base mb-1">
+                Verify you're human before posting.
+              </p>
+              <p className="text-center text-black/50 text-base mb-1">
+                ** For safety lang po, baka i-spam niyo eh. **
+              </p>
 
-            {error && (
-              <div className="bg-red-500/20 text-red-900 px-4 py-2 rounded-md text-center font-sans text-sm font-bold border border-red-500/30">
-                {error}
+              {/* Captcha lives inside the sticky-note modal */}
+              {TURNSTILE_SITE_KEY && (
+                <div id="turnstile-widget" className="flex justify-center min-h-[65px] my-2"></div>
+              )}
+
+              {error && (
+                <div className="bg-red-500/20 text-red-900 px-4 py-2 rounded-md text-center font-sans text-sm font-bold border border-red-500/30">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-center gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeConfirm}
+                  className="px-5 py-2 rounded-full text-black/60 font-bold hover:bg-black/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPost}
+                  disabled={loading}
+                  className="px-6 py-2 rounded-full bg-black/80 text-white font-bold shadow-lg hover:bg-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Check size={20} />
+                  )}
+                  Post Note
+                </button>
               </div>
-            )}
-
-            <div className="flex justify-center gap-3 mt-auto pt-4">
-              <button
-                type="button"
-                onClick={closeConfirm}
-                className="px-5 py-2 rounded-full text-black/60 font-bold hover:bg-black/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmPost}
-                disabled={loading}
-                className="px-6 py-2 rounded-full bg-black/80 text-white font-bold shadow-lg hover:bg-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Check size={20} />
-                )}
-                Post Note
-              </button>
             </div>
           </div>
         </div>

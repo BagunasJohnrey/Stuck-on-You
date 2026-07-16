@@ -38,4 +38,34 @@ router.delete('/notes/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/reports  — list flagged notes with their reports.
+router.get('/reports', requireAdmin, async (req, res) => {
+  try {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { note: true },
+    });
+    return res.json(reports);
+  } catch (err) {
+    console.error('GET /api/admin/reports failed:', err);
+    return res.status(500).json({ error: 'Unable to load reports.' });
+  }
+});
+
+// DELETE /api/admin/reports/:id  — dismiss a single report.
+router.delete('/reports/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid report id.' });
+  }
+
+  try {
+    await prisma.report.delete({ where: { id } });
+    return res.json({ success: true, id });
+  } catch (err) {
+    console.error('DELETE /api/admin/reports/:id failed:', err);
+    return res.status(500).json({ error: 'Unable to delete report.' });
+  }
+});
+
 export default router;

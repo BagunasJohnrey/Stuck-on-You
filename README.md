@@ -101,10 +101,14 @@ npm run dev
 
 The backend exposes the following RESTful endpoints:
 
-* **`GET /api/notes`**:YR Retrieves all notes, ordered by creation date.
-* **`POST /api/notes`**: Submits a new note.
-* **Body**: `{ "to_name": "...", "message": "...", "alias": "...", "color": "..." }`
-* **Rate Limit**: 5 requests per hour per IP.
+* **`GET /api/notes`**: Retrieves notes (newest first), paginated via `?page=&limit=`.
+* **`POST /api/notes`**: Submits a new note. Requires a valid Turnstile `turnstileToken`.
+  * Body: `{ "to_name": "...", "message": "...", "alias": "...", "color": "...", "turnstileToken": "..." }`
+  * Rate limit: 50 posts / 20 min per IP.
+* **`POST /api/notes/:id/report`**: Flags a note for admin review. Body: `{ "reason": "..." }` (optional, max 200 chars).
+* **`DELETE /api/admin/notes/:id`**: (Admin) Deletes a note. Requires `Authorization: Bearer <ADMIN_TOKEN>`.
+* **`GET /api/admin/reports`**: (Admin) Lists all reports (with their notes).
+* **`DELETE /api/admin/reports/:id`**: (Admin) Dismisses a single report.
 
 
 
@@ -113,8 +117,8 @@ The backend exposes the following RESTful endpoints:
 ```
 stuck-on-you/
 ├── backend/             # Express.js server
-│   ├── lib/             # Supabase client configuration
-│   ├── routes/          # API routes (notes.js)
+│   ├── lib/             # Prisma client, Turnstile verify, validation helpers
+│   ├── routes/          # API routes (notes.js, admin.js)
 │   └── index.js         # Entry point and rate limiter config
 │
 └── frontend/            # React application

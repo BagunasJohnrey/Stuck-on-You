@@ -159,4 +159,33 @@ router.post('/', submitLimiter, async (req, res) => {
   }
 });
 
+// POST /api/notes/:id/report  — flag a note for admin review.
+const REPORT_LIMITS = { reason: 200 };
+
+router.post('/:id/report', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid note id.' });
+  }
+
+  const rawReason = req.body?.reason;
+  const reason =
+    typeof rawReason === 'string' && rawReason.trim().length > 0
+      ? rawReason.trim().slice(0, REPORT_LIMITS.reason)
+      : null;
+
+  try {
+    const note = await prisma.note.findUnique({ where: { id } });
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found.' });
+    }
+
+    await prisma.report.create({ data: { noteId: id, reason } });
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    console.error('POST /api/notes/:id/report failed:', err);
+    return res.status(500).json({ error: 'Unable to submit report.' });
+  }
+});
+
 export default router;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PenLine, X, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react'; 
+import { PenLine, X, ChevronLeft, ChevronRight, Maximize2, Minimize2, Flag } from 'lucide-react'; 
 import Navbar from '../components/Navbar';
 
 const Browse = () => {
@@ -14,6 +14,52 @@ const Browse = () => {
 
   // Popup State
   const [selectedNote, setSelectedNote] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNote, setReportNote] = useState(null); // specific note being reported
+  const [reportType, setReportType] = useState('');
+  const [reportCustom, setReportCustom] = useState('');
+  const [reportStatus, setReportStatus] = useState(null); // null | 'sending' | 'done' | 'error'
+
+  const REPORT_TYPES = [
+    'Spam or scam',
+    'Inappropriate content',
+    'Harassment or bullying',
+    'Wrong information',
+    'Other',
+  ];
+
+  const openReport = (note) => {
+    setReportOpen(true);
+    setReportNote(note);
+    setReportType('');
+    setReportCustom('');
+    setReportStatus(null);
+  };
+
+  const closeReport = () => {
+    setReportOpen(false);
+    setReportNote(null);
+    setReportStatus(null);
+  };
+
+  const handleReport = async () => {
+    if (!reportNote || !reportType) return;
+    const reason = reportType === 'Other' ? reportCustom.trim() : reportType;
+    if (reportType === 'Other' && !reason) return;
+    setReportStatus('sending');
+    try {
+      const response = await fetch(`${API_URL}/api/notes/${reportNote.id}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) throw new Error('Failed');
+      setReportStatus('done');
+      setTimeout(() => closeReport(), 1500);
+    } catch {
+      setReportStatus('error');
+    }
+  };
 
   // Full Screen State
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -220,6 +266,18 @@ const Browse = () => {
         <PenLine className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:rotate-12 transition-transform" />
       </Link>
 
+      {/* Report Button (lower-left, only when a note is open, matches Write button style) */}
+      {selectedNote && (
+        <button
+          type="button"
+          onClick={() => openReport(selectedNote)}
+          className="fixed bottom-4 right-4 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-[#ab1615] rounded-full shadow-2xl flex items-center justify-center hover:bg-[#8f1312] hover:-translate-y-1 transition-all z-[65] group border-4 border-white"
+          title="Report this note"
+        >
+          <Flag className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:rotate-12 transition-transform" />
+        </button>
+      )}
+
       {/* NOTE POPUP MODAL */}
       {selectedNote && (
         <div 
@@ -227,7 +285,7 @@ const Browse = () => {
           onClick={() => setSelectedNote(null)}
         >
           <div 
-            className="relative w-full max-w-lg aspect-square sm:aspect-[4/3] shadow-2xl p-8 sm:p-12 flex flex-col transform transition-transform scale-100 rotate-1"
+            className="relative w-[calc(100%-2rem)] max-w-lg shadow-2xl transform transition-transform scale-100 rotate-1"
             style={{ 
               backgroundColor: selectedNote.color,
               fontFamily: '"Caveat", cursive',
@@ -237,31 +295,128 @@ const Browse = () => {
           >
             <button 
               onClick={() => setSelectedNote(null)}
-              className="absolute top-2 right-2 p-2 hover:bg-black/10 rounded-full transition-colors text-black/50 hover:text-black"
+              className="absolute top-2 right-2 z-10 p-2 hover:bg-black/10 rounded-full transition-colors text-black/50 hover:text-black"
             >
               <X size={24} />
             </button>
 
             <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-32 h-10 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20"></div>
 
-            <div className="flex-grow flex flex-col justify-center items-center text-center h-full">
-              {selectedNote.to_name && (
-                <div className="w-full border-b-2 border-black/10 pb-2 mb-4">
-                  <span className="text-2xl sm:text-3xl text-black/50 font-bold">To: </span>
-                  <span className="text-3xl sm:text-4xl text-black font-bold">{selectedNote.to_name}</span>
-                </div>
-              )}
-              
-              <p className={`${getNoteFontSize(selectedNote.message)} leading-relaxed text-black w-full overflow-y-auto max-h-[60vh] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]`}>
-                {selectedNote.message}
-              </p>
+            <div className="w-full aspect-square sm:aspect-[4/3] max-h-[85vh] overflow-y-auto flex flex-col p-5 sm:p-8 md:p-12 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+              <div className="flex-grow flex flex-col justify-center items-center text-center h-full min-h-0">
+                {selectedNote.to_name && (
+                  <div className="w-full border-b-2 border-black/10 pb-2 mb-4">
+                    <span className="text-xl sm:text-3xl text-black/50 font-bold">To: </span>
+                    <span className="text-2xl sm:text-4xl text-black font-bold break-words">{selectedNote.to_name}</span>
+                  </div>
+                )}
+                
+                <p className={`${getNoteFontSize(selectedNote.message)} leading-relaxed text-black w-full break-words`}>
+                  {selectedNote.message}
+                </p>
 
-              {selectedNote.alias && (
-                <div className="w-full pt-4 mt-auto text-right">
-                  <span className="text-2xl sm:text-3xl text-black/50 font-bold">- </span>
-                  <span className="text-2xl sm:text-3xl text-black font-bold pr-2">{selectedNote.alias}</span>
+                {selectedNote.alias && (
+                  <div className="w-full pt-4 mt-auto text-right">
+                    <span className="text-2xl sm:text-3xl text-black/50 font-bold">- </span>
+                    <span className="text-2xl sm:text-3xl text-black font-bold pr-2">{selectedNote.alias}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT MODAL (sticky-note style, separate popup) */}
+      {reportOpen && reportNote && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 animate-fadeIn"
+          onClick={closeReport}
+        >
+          <div
+            className="relative w-[calc(100%-2rem)] max-w-xl shadow-2xl transform -rotate-1"
+            style={{
+              backgroundColor: '#fdffb6',
+              fontFamily: '"Caveat", cursive',
+              backgroundImage:
+                'repeating-linear-gradient(0deg, #00000008 0px, #00000008 1px, transparent 1px, transparent 28px)',
+              backgroundAttachment: 'local',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={closeReport}
+              className="absolute top-2 right-2 z-10 p-2 hover:bg-black/10 rounded-full transition-colors text-black/50 hover:text-black"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20"></div>
+
+            <div className="w-full max-h-[85vh] overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+              <h2 className="text-3xl font-bold text-black/70 text-center mb-2 mt-4">Report a Note</h2>
+
+              {/* Category + message (note already known) */}
+              <div className="flex flex-col gap-3">
+                
+                <p className="text-center text-black/50 text-base">Select a category:</p>
+                <p className="text-center text-black/50 text-base -mt-4">
+                  Explanation po bakit i-rereport
+                </p>
+
+                {/* Category dropdown */}
+                <select
+                  value={reportType}
+                  onChange={(e) => {
+                    setReportType(e.target.value);
+                    setReportCustom('');
+                  }}
+                  className="w-full rounded-md border border-black/10 bg-white/70 p-2 text-black/80 outline-none focus:border-red-400"
+                >
+                  <option value="">— Choose a category —</option>
+                  {REPORT_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+
+                {/* Custom message — only when "Other" is selected */}
+                {reportType === 'Other' && (
+                  <textarea
+                    value={reportCustom}
+                    onChange={(e) => setReportCustom(e.target.value)}
+                    placeholder="Describe the issue..."
+                    maxLength={200}
+                    className="w-full h-20 resize-none rounded-md border border-black/10 p-2 text-black outline-none focus:border-red-400 placeholder:text-black/30 bg-white/70"
+                  />
+                )}
+
+                {reportStatus === 'error' && (
+                  <p className="text-center text-sm font-bold text-red-700">Could not submit. Try again.</p>
+                )}
+
+                <div className="flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={closeReport}
+                    className="px-5 py-2 rounded-full text-black/60 font-bold hover:bg-black/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReport}
+                    disabled={reportStatus === 'sending' || !reportType || (reportType === 'Other' && !reportCustom.trim())}
+                    className="px-5 py-2 rounded-full bg-black/80 text-white font-bold shadow-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {reportStatus === 'sending' ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Flag size={20} />
+                    )}
+                    {reportStatus === 'done' ? 'Reported' : 'Submit report'}
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

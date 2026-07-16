@@ -23,15 +23,15 @@
 
 * **Runtime**: [Node.js](https://nodejs.org/)
 * **Framework**: [Express.js](https://expressjs.com/)
-* **Database**: [Supabase](https://supabase.com/)
-* **Security**: [express-rate-limit](https://www.npmjs.com/package/express-rate-limit)
+* **Database**: [Aiven for PostgreSQL](https://aiven.io/) via [Prisma ORM](https://www.prisma.io/)
+* **Security**: [helmet](https://www.npmjs.com/package/helmet), [express-rate-limit](https://www.npmjs.com/package/express-rate-limit)
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 * Node.js installed on your machine.
-* A Supabase project set up for the database.
+* An Aiven for PostgreSQL service set up for the database.
 
 ### 1. Backend Setup
 
@@ -47,8 +47,21 @@ Create a `.env` file in the `backend` directory with the following variables:
 
 ```env
 PORT=5000
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+NODE_ENV=development
+DATABASE_URL=postgres://avnadmin:password@host.aivencloud.com:12345/defaultdb?sslmode=require
+
+# Anti-spam / admin
+ADMIN_TOKEN=generate-a-long-random-string   # admin login password
+SESSION_SECRET=generate-another-long-random-string  # signs admin session cookies
+ADMIN_PREFIX=/api/love-admin                # obscure path for admin API (security through obscurity)
+TURNSTILE_SECRET_KEY=your-cloudflare-turnstile-secret-key
+
+```
+
+Run the Prisma migration to create the database tables:
+
+```bash
+npx prisma migrate dev --name init
 
 ```
 
@@ -75,6 +88,8 @@ Create a `.env` file in the `frontend` directory:
 
 ```env
 VITE_API_URL=http://localhost:5000
+VITE_TURNSTILE_SITE_KEY=your-cloudflare-turnstile-site-key
+VITE_ADMIN_PREFIX=/api/love-admin   # must match backend ADMIN_PREFIX
 
 ```
 
@@ -89,10 +104,24 @@ npm run dev
 
 The backend exposes the following RESTful endpoints:
 
-* **`GET /api/notes`**:YR Retrieves all notes, ordered by creation date.
-* **`POST /api/notes`**: Submits a new note.
-* **Body**: `{ "to_name": "...", "message": "...", "alias": "...", "color": "..." }`
-* **Rate Limit**: 5 requests per hour per IP.
+* **`GET /api/notes`**: Retrieves notes (newest first), paginated via `?page=&limit=`.
+* **`POST /api/notes`**: Submits a new note. Requires a valid Turnstile `turnstileToken`.
+  * Body: `{ "to_name": "...", "message": "...", "alias": "...", "color": "...", "turnstileToken": "..." }`
+  * Rate limit: 50 posts / 20 min per IP.
+* **`POST /api/notes/:id/report`**: Flags a note for admin review. Body: `{ "reason": "..." }` (optional, max 200 chars).
+
+### Admin API (under `ADMIN_PREFIX`, default `/api/love-admin`)
+
+All admin endpoints require an authenticated session. Sessions are issued via the login
+endpoint as an HMAC-signed, `HttpOnly` cookie (no bearer token, no `localStorage`).
+
+* **`POST /<ADMIN_PREFIX>/login`**: Authenticate with `{ "password": "<ADMIN_TOKEN>" }`. On success, sets an `admin_session` cookie (valid 8h). Rate limit: **3 failed attempts / 15 min per IP** (returns `429` when exceeded).
+* **`POST /<ADMIN_PREFIX>/logout`**: Clears the session cookie.
+* **`GET /<ADMIN_PREFIX>/reports`**: (Admin) Lists all reports (with their notes).
+* **`DELETE /<ADMIN_PREFIX>/notes/:id`**: (Admin) Deletes a note.
+* **`DELETE /<ADMIN_PREFIX>/reports/:id`**: (Admin) Dismisses a single report.
+
+> The admin UI is available at `/admin` and uses the same cookie-based session.
 
 
 
@@ -101,15 +130,15 @@ The backend exposes the following RESTful endpoints:
 ```
 stuck-on-you/
 ├── backend/             # Express.js server
-│   ├── lib/             # Supabase client configuration
-│   ├── routes/          # API routes (notes.js)
-│   └── index.js         # Entry point and rate limiter config
+│   ├── lib/             # Prisma client, Turnstile verify, validation, session helpers
+│   ├── routes/          # API routes (notes.js, admin.js)
+│   └── index.js         # Entry point, CORS, and rate limiter config
 │
 └── frontend/            # React application
     ├── src/
     │   ├── assets/      # Images and static assets
     │   ├── components/  # Reusable UI components (Navbar, Footer, Popup)
-    │   ├── pages/       # Page views (Home, Browse, Submit, About)
+    │   ├── pages/       # Page views (Home, Browse, Submit, About, Admin, NotFound)
     │   └── App.jsx      # Main application routing
     └── vite.config.js   # Vite configuration
 

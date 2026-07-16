@@ -1,0 +1,44 @@
+// Prisma schema for Stuck-on-You (Aiven for PostgreSQL)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  toName    String?  @map("to_name") @db.VarChar(50)
+  message   String   @db.VarChar(300)
+  alias     String?  @db.VarChar(30)
+  color     String   @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reports Report[]
+
+  @@index([createdAt])
+  @@map("notes")
+}
+
+model ProhibitedWord {
+  id   Int    @id @default(autoincrement())
+  word String @unique
+
+  @@map("prohibited_words")
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  noteId    Int
+  reason    String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@map("reports")
+}

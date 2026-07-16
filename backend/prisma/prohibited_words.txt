@@ -1,0 +1,6 @@
+# One prohibited word per line.
+# Lines starting with # and blank lines are ignored.
+# Words are stored lowercase. Edit freely, then run: npm run prisma:seed
+# (Filler starter list — replace/expand with your own moderation list.)
+gagi
+sample_lang_paki_edit_nalang_po

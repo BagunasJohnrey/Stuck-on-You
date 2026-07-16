@@ -8,6 +8,9 @@ import noteRoutes from './routes/notes.js';
 import adminRoutes from './routes/admin.js';
 import { prisma } from './lib/prisma.js';
 
+// Obscure, non-guessable prefix for admin endpoints (security through obscurity).
+const ADMIN_PREFIX = process.env.ADMIN_PREFIX || '/api/z8f2-admin';
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -21,8 +24,9 @@ app.use(helmet());
 // Optimized CORS Configuration
 const corsOptions = {
   origin: ['https://stuck-on-you.vercel.app', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
   optionsSuccessStatus: 200,
 };
 
@@ -33,7 +37,7 @@ app.use(express.json({ limit: '10kb' }));
 
 // Routes
 app.use('/api/notes', noteRoutes);
-app.use('/api/admin', adminRoutes);
+app.use(ADMIN_PREFIX, adminRoutes);
 
 // Health Check
 app.get('/', (req, res) => res.send('Stuck on You API is running!'));

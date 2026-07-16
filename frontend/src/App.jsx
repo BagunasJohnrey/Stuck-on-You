@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Components
 import Footer from './components/Footer';
-import LoveHuePopup from './components/LoveHuePopup';
 
 // Pages 
 import Home from './pages/Home';
@@ -27,7 +26,6 @@ const App = () => {
         </main>
 
         <Footer />
-        <LoveHuePopup />
         
       </div>
     </Router>

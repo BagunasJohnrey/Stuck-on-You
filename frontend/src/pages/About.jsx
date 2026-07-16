@@ -1,7 +1,5 @@
 import bgImage from '../assets/bg.png';
 import aboutPageImg from '../assets/about-page.png'; 
-import idIverene from '../assets/id-iverene.png';    
-import idJarey from '../assets/id-jarey.png';  
 import Navbar from '../components/Navbar';     
 
 const About = () => {
@@ -31,39 +29,7 @@ const About = () => {
           />
         </div>
 
-        {/* Right Side: Developer IDs */}
-        <div className="w-full md:w-1/2 flex flex-col items-center md:items-start gap-6 relative">
-          
-          {/* Developer 1 (Iverene) */}
-          <a 
-            href="https://github.com/iverene" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="relative group block transform -rotate-3 hover:scale-105 hover:z-10 transition-all duration-300 cursor-pointer"
-          >
-            {/* Changed: Responsive widths */}
-            <img 
-              src={idIverene} 
-              alt="Frontend Developer - Iverene" 
-              className="w-64 sm:w-72 lg:w-80 shadow-lg"
-            />
-          </a>
 
-          {/* Developer 2 (Jarey) */}
-          <a 
-            href="https://github.com/BagunasJohnrey" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="relative group block transform -rotate-3 translate-x-4 -translate-y-4 hover:scale-105 hover:translate-y-0 hover:z-10 transition-all duration-300 cursor-pointer"
-          >
-            <img 
-              src={idJarey} 
-              alt="Backend Developer - Jarey" 
-              className="w-64 sm:w-72 lg:w-80 shadow-lg"
-            />
-          </a>
-
-        </div>
 
       </div>
     </div>

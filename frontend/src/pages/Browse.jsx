@@ -1,7 +1,6 @@
-// frontend/src/pages/Browse.jsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PenLine, X, ChevronLeft, ChevronRight } from 'lucide-react'; 
+import { PenLine, X, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react'; 
 import Navbar from '../components/Navbar';
 
 const Browse = () => {
@@ -15,6 +14,9 @@ const Browse = () => {
 
   // Popup State
   const [selectedNote, setSelectedNote] = useState(null);
+
+  // Full Screen State
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Fetch real notes from the database (Memoized for polling)
   const fetchNotes = useCallback(async () => {
@@ -33,7 +35,7 @@ const Browse = () => {
   useEffect(() => {
     fetchNotes(); // Initial load
 
-    const pollInterval = setInterval(fetchNotes, 10000); // Poll for new notes
+    const pollInterval = setInterval(fetchNotes, 5000); // Poll for new notes
     return () => clearInterval(pollInterval);
   }, [fetchNotes]);
 
@@ -46,7 +48,7 @@ const Browse = () => {
         const totalPages = Math.ceil(notes.length / NOTES_PER_PAGE);
         return (prev + 1) % totalPages;
       });
-    }, 20000); 
+    }, 60000); 
 
     return () => clearInterval(interval);
   }, [notes.length]);
@@ -89,11 +91,12 @@ const Browse = () => {
   return (
     // MAIN CONTAINER
     <div 
-      className="relative w-full min-h-screen py-20 px-2 sm:px-4 flex justify-center items-start"
+      className={`relative w-full flex justify-center items-start transition-all duration-500 ease-in-out
+        ${isFullScreen ? 'h-screen overflow-hidden p-0' : 'min-h-screen py-20 px-2 sm:px-4'}`}
       style={{
         backgroundColor: '#f3f4f6', // Light gray base
-        // CSS Pattern for Brick Wall
-        backgroundImage: `
+        // CSS Pattern for Brick Wall (Only visible when not full screen)
+        backgroundImage: isFullScreen ? 'none' : `
           linear-gradient(335deg, rgba(0,0,0,0.03) 23px, transparent 23px),
           linear-gradient(155deg, rgba(0,0,0,0.03) 23px, transparent 23px),
           linear-gradient(335deg, rgba(0,0,0,0.03) 23px, transparent 23px),
@@ -103,14 +106,18 @@ const Browse = () => {
         backgroundPosition: '0px 2px, 4px 35px, 29px 31px, 34px 6px'
       }}
     >
-      <Navbar />
+      {/* Conditionally Render Navbar */}
+      {!isFullScreen && <Navbar />}
       
       {/* Corkboard Container */}
       <div 
-        className="relative w-full max-w-7xl min-h-[85vh] bg-[#d7a876] border-8 md:border-[16px] border-[#8b5a2b] rounded-lg shadow-2xl p-2 sm:p-8 pb-20 overflow-hidden transition-all duration-500"
+        className={`relative bg-[#d7a876] shadow-2xl p-2 sm:p-8 pb-20 overflow-hidden transition-all duration-500
+          ${isFullScreen 
+            ? 'w-full h-full max-w-none rounded-none border-none' 
+            : 'w-full max-w-7xl min-h-[85vh] border-8 md:border-[16px] border-[#8b5a2b] rounded-lg'
+          }`}
         style={{
-          // Shadow to make it look like it's hanging off the wall
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(0,0,0,0.3)',
+          boxShadow: isFullScreen ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(0,0,0,0.3)',
           backgroundImage: `
             radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px),
             radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)
@@ -119,16 +126,22 @@ const Browse = () => {
           backgroundPosition: '0 0, 10px 10px'
         }}
       >
-        {/* Page Indicator (Top Right - Existing) */}
-        {!loading && notes.length > NOTES_PER_PAGE && (
-          <div className="absolute top-2 right-2 bg-white/50 px-2 py-1 rounded text-xs font-mono opacity-50 pointer-events-none z-10">
-             Page {currentPage + 1} of {totalPages}
-          </div>
-        )}
+        {/* TOP CONTROLS: Page Indicator + Full Screen Toggle */}
+        <div className="absolute top-2 right-2 flex items-center gap-2 z-30">
+
+          {/* Full Screen Toggle Button */}
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="p-1.5 bg-white/40 hover:bg-white/80 text-[#5c3a1b] rounded-md transition-all shadow-sm backdrop-blur-sm"
+            title={isFullScreen ? "Exit Full Screen" : "Enter Full Screen"}
+          >
+            {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+        </div>
 
         {/* Loading Spinner */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 text-white font-sans mt-20">
+          <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-white font-sans">
             <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-xl font-cursive">Loading notes...</p>
           </div>
@@ -145,7 +158,7 @@ const Browse = () => {
                   fontFamily: '"Caveat", cursive', 
                 }}
               >
-                {/* Visual Tape (Replaced Pin) */}
+                {/* Visual Tape */}
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-20 h-6 bg-white/30 backdrop-blur-md rotate-[-2deg] shadow-sm border border-white/20 z-20"></div>
 
                 <div className="grow flex flex-col justify-between items-center text-center h-full overflow-hidden">
@@ -173,35 +186,36 @@ const Browse = () => {
 
         {/* Manual Pagination Controls (Bottom Center) */}
         {!loading && notes.length > NOTES_PER_PAGE && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 z-30">
+          <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 z-30">
             <button 
               onClick={handlePrevPage}
-              className="p-2 bg-[#fdfbf7] rounded-full shadow-lg border-2 border-[#8b5a2b]/20 text-[#8b5a2b] hover:bg-white hover:scale-110 active:scale-95 transition-all duration-200"
+              className="p-1.5 sm:p-2 bg-[#fdfbf7] rounded-full shadow-lg border-2 border-[#8b5a2b]/20 text-[#8b5a2b] hover:bg-white hover:scale-110 active:scale-95 transition-all duration-200"
               aria-label="Previous Page"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             
-            <span className="font-mono text-xs sm:text-sm font-bold text-[#5c3a1b] bg-[#fdfbf7]/80 backdrop-blur-sm px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-inner border border-[#8b5a2b]/10">
+            <span className="font-mono text-xs sm:text-sm font-bold text-[#5c3a1b] bg-[#fdfbf7] px-3 sm:px-5 py-1.5 rounded-full shadow-inner border border-[#8b5a2b]/20 min-w-[70px] sm:min-w-[90px] text-center flex justify-center items-center shadow-sm">
               {currentPage + 1} / {totalPages}
             </span>
 
             <button 
               onClick={handleNextPage}
-              className="p-2 bg-[#fdfbf7] rounded-full shadow-lg border-2 border-[#8b5a2b]/20 text-[#8b5a2b] hover:bg-white hover:scale-110 active:scale-95 transition-all duration-200"
+              className="p-1.5 sm:p-2 bg-[#fdfbf7] rounded-full shadow-lg border-2 border-[#8b5a2b]/20 text-[#8b5a2b] hover:bg-white hover:scale-110 active:scale-95 transition-all duration-200"
               aria-label="Next Page"
             >
-              <ChevronRight size={24} />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         )}
 
       </div>
 
-      {/* Write Button */}
+      {/* Write Button (Always Visible, Higher Z-Index) */}
       <Link 
         to="/submit"
-        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-[#ab1615] rounded-full shadow-2xl flex items-center justify-center hover:bg-[#8f1312] hover:-translate-y-1 transition-all z-40 group border-4 border-white"
+        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-[#ab1615] rounded-full shadow-2xl flex items-center justify-center hover:bg-[#8f1312] hover:-translate-y-1 transition-all z-50 group border-4 border-white"
+        title="Write a Note"
       >
         <PenLine className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:rotate-12 transition-transform" />
       </Link>
@@ -209,7 +223,7 @@ const Browse = () => {
       {/* NOTE POPUP MODAL */}
       {selectedNote && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fadeIn"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-fadeIn"
           onClick={() => setSelectedNote(null)}
         >
           <div 

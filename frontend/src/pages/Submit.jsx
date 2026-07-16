@@ -29,7 +29,7 @@ const Submit = () => {
   const [error, setError] = useState(null);
 
   // Constants
-  const MAX_CHARS = 200;
+  const MAX_CHARS = 300;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

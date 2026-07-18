@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Trash2, ShieldAlert, LogOut, RefreshCw, StickyNote, X } from 'lucide-react';
+import { Trash2, ShieldAlert, LogOut, RefreshCw, StickyNote, X, Ban } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 const fetchOpts = { credentials: 'include' };
@@ -10,10 +10,12 @@ const Admin = () => {
 
   const [password, setPassword] = useState('');
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState('reports'); // 'reports' | 'notes'
+  const [tab, setTab] = useState('reports'); // 'reports' | 'notes' | 'banned'
 
   const [reports, setReports] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [banned, setBanned] = useState([]);
+  const [newWord, setNewWord] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionStatus, setActionStatus] = useState(null);
@@ -61,11 +63,33 @@ const Admin = () => {
     }
   }, [API_URL]);
 
+  const fetchBanned = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${ADMIN}/banned`, { ...fetchOpts });
+      if (res.status === 401) {
+        setAuthed(false);
+        setError('Session expired. Please log in again.');
+        return;
+      }
+      if (!res.ok) throw new Error('Failed to load banned words');
+      const data = await res.json();
+      setBanned(data);
+      setAuthed(true);
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  }, [ADMIN]);
+
   useEffect(() => {
     if (!authed) return;
     if (tab === 'reports') fetchReports();
-    else fetchNotes();
-  }, [authed, tab, fetchReports, fetchNotes]);
+    else if (tab === 'notes') fetchNotes();
+    else fetchBanned();
+  }, [authed, tab, fetchReports, fetchNotes, fetchBanned]);
 
   const handleLogin = async () => {
     setError(null);
@@ -102,9 +126,14 @@ const Admin = () => {
     setAuthed(false);
     setReports([]);
     setNotes([]);
+    setBanned([]);
   };
 
-  const refresh = () => (tab === 'reports' ? fetchReports() : fetchNotes());
+  const refresh = () => {
+    if (tab === 'reports') fetchReports();
+    else if (tab === 'notes') fetchNotes();
+    else fetchBanned();
+  };
 
   const deleteReport = async (id) => {
     setActionStatus(`dismiss-${id}`);
@@ -135,6 +164,53 @@ const Admin = () => {
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch {
       setError('Failed to delete note');
+    } finally {
+      setActionStatus(null);
+    }
+  };
+
+  const addWord = async () => {
+    const word = newWord.trim().toLowerCase();
+    if (!word) return;
+    setActionStatus('add');
+    setError(null);
+    try {
+      const res = await fetch(`${ADMIN}/banned`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word }),
+        ...fetchOpts,
+      });
+      if (!res.ok) {
+        let msg = 'Failed to add word.';
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch { /* keep default */ }
+        setError(msg);
+        return;
+      }
+      const created = await res.json();
+      setBanned((prev) => [...prev, created].sort((a, b) => a.word.localeCompare(b.word)));
+      setNewWord('');
+    } catch {
+      setError('Failed to add word.');
+    } finally {
+      setActionStatus(null);
+    }
+  };
+
+  const deleteWord = async (id) => {
+    setActionStatus(`del-${id}`);
+    try {
+      const res = await fetch(`${ADMIN}/banned/${id}`, {
+        method: 'DELETE',
+        ...fetchOpts,
+      });
+      if (!res.ok) throw new Error();
+      setBanned((prev) => prev.filter((w) => w.id !== id));
+    } catch {
+      setError('Failed to delete word');
     } finally {
       setActionStatus(null);
     }
@@ -275,6 +351,20 @@ const Admin = () => {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setTab('banned')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 text-xl sm:text-2xl font-bold transition-all border-b-2 -mb-px whitespace-nowrap
+              ${tab === 'banned'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-primary/40 hover:text-primary/70'}`}
+          >
+            <Ban size={18} className="sm:w-5 sm:h-5" /> Banned Words
+            {tab === 'banned' && banned.length > 0 && (
+              <span className="ml-1 bg-primary/20 text-primary text-xs font-bold rounded-full px-2 py-0.5 font-sans">
+                {banned.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {error && (
@@ -334,6 +424,48 @@ const Admin = () => {
               ))}
             </div>
           )
+        ) : tab === 'banned' ? (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row gap-2 font-sans">
+              <input
+                type="text"
+                value={newWord}
+                onChange={(e) => setNewWord(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addWord()}
+                placeholder="Add a banned word..."
+                className="grow bg-white shadow border border-primary/20 rounded-full px-5 py-2.5 outline-none focus:border-primary/50 text-black/80"
+              />
+              <button
+                onClick={addWord}
+                disabled={actionStatus === 'add' || !newWord.trim()}
+                className="px-6 py-2.5 rounded-full bg-black/80 text-white font-bold shadow-lg hover:bg-black hover:scale-105 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap"
+              >
+                {actionStatus === 'add' ? 'Adding...' : 'Add Word'}
+              </button>
+            </div>
+            {banned.length === 0 ? (
+              <div className="text-center py-16 text-primary/50 text-3xl font-cursive">No banned words yet.</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {banned.map((w) => (
+                  <div
+                    key={w.id}
+                    className="flex items-center gap-2 bg-white shadow border border-primary/15 rounded-full pl-4 pr-2 py-1.5 font-sans"
+                  >
+                    <span className="text-black/80 font-medium">{w.word}</span>
+                    <button
+                      onClick={() => deleteWord(w.id)}
+                      disabled={actionStatus === `del-${w.id}`}
+                      className="p-1.5 rounded-full bg-black/80 text-white hover:bg-black transition-all disabled:opacity-50"
+                      title="Remove"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : notes.length === 0 ? (
           <div className="text-center py-20 text-primary/50 text-3xl font-cursive">No notes found.</div>
         ) : (

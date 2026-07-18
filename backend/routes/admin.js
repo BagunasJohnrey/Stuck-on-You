@@ -108,4 +108,54 @@ router.delete('/reports/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /banned  — list all prohibited words.
+router.get('/banned', requireAdmin, async (req, res) => {
+  try {
+    const words = await prisma.prohibitedWord.findMany({ orderBy: { word: 'asc' } });
+    return res.json(words);
+  } catch (err) {
+    console.error('GET /banned failed:', err);
+    return res.status(500).json({ error: 'Unable to load banned words.' });
+  }
+});
+
+// POST /banned  — add a prohibited word.
+router.post('/banned', requireAdmin, async (req, res) => {
+  const raw = typeof req.body?.word === 'string' ? req.body.word.trim().toLowerCase() : '';
+  if (raw.length < 2) {
+    return res.status(400).json({ error: 'Word must be at least 2 characters.' });
+  }
+  if (raw.length > 50) {
+    return res.status(400).json({ error: 'Word is too long.' });
+  }
+
+  try {
+    const word = await prisma.prohibitedWord.upsert({
+      where: { word: raw },
+      update: {},
+      create: { word: raw },
+    });
+    return res.status(201).json(word);
+  } catch (err) {
+    console.error('POST /banned failed:', err);
+    return res.status(500).json({ error: 'Unable to add banned word.' });
+  }
+});
+
+// DELETE /banned/:id  — remove a prohibited word.
+router.delete('/banned/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid word id.' });
+  }
+
+  try {
+    await prisma.prohibitedWord.delete({ where: { id } });
+    return res.json({ success: true, id });
+  } catch (err) {
+    console.error('DELETE /banned/:id failed:', err);
+    return res.status(500).json({ error: 'Unable to delete banned word.' });
+  }
+});
+
 export default router;

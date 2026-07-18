@@ -43,8 +43,8 @@ router.post('/login', loginLimiter, (req, res) => {
   const token = createSessionToken();
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+    secure: true,
     maxAge: SESSION_MAX_AGE,
     path: '/',
   });

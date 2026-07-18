@@ -56,29 +56,25 @@ const normalizeText = (text) => {
 };
 
 export const isOffensive = async (text) => {
-  if (!text) return false;
-  
+  if (!text) return null;
+
   const bannedWords = await getBannedWords();
   const cleanText = normalizeText(text);
-  
+
   const tokenizer = { tokenize: (s) => s.split(/\s+/).filter(Boolean) };
   const tokens = tokenizer.tokenize(cleanText);
 
   // Check 1: Direct Token Match (Handles reversed and collapsed letters)
-  const hasBannedToken = tokens.some(token => {
+  for (const token of tokens) {
     const collapsed = token.replace(/(.)\1+/g, '$1'); // 'gaaaago' -> 'gago'
     const reversed = token.split('').reverse().join(''); // 'ogag' -> 'gago'
     const collapsedReversed = collapsed.split('').reverse().join('');
 
-    return (
-      bannedWords.includes(token) || 
-      bannedWords.includes(collapsed) || 
-      bannedWords.includes(reversed) ||
-      bannedWords.includes(collapsedReversed)
+    const hit = [token, collapsed, reversed, collapsedReversed].find((w) =>
+      bannedWords.includes(w)
     );
-  });
-
-  if (hasBannedToken) return true;
+    if (hit) return hit;
+  }
 
   // Check 2: Word-boundary Match for hidden words across the whole string.
   // Uses boundaries so a banned word only matches as a standalone word,
@@ -88,26 +84,32 @@ export const isOffensive = async (text) => {
   const reversedSpaceless = spacelessText.split('').reverse().join('');
 
   const singleWords = bannedWords
-    .filter(b => !b.includes(' ') && b.length >= 3)
+    .filter((b) => !b.includes(' ') && b.length >= 3)
     .map(escapeRegExp);
 
   if (singleWords.length > 0) {
     const boundary = new RegExp(`(?:^|[^a-z])(${singleWords.join('|')})(?:$|[^a-z])`);
-    if (boundary.test(spacelessText) || boundary.test(reversedSpaceless)) {
-      return true;
-    }
+    const m = boundary.exec(spacelessText) || boundary.exec(reversedSpaceless);
+    if (m) return m[1];
   }
 
   // Check 3: Multi-word phrase match (e.g. "mag kano", "putang ina").
   // Collapse spaces in both the phrase and the text so spacing tricks
   // (extra spaces, missing spaces) still match.
-  const phrases = bannedWords.filter(b => b.includes(' '));
-  return phrases.some(phrase => {
+  const phrases = bannedWords.filter((b) => b.includes(' '));
+  for (const phrase of phrases) {
     const normPhrase = phrase.replace(/\s+/g, ' ').trim();
-    if (normPhrase.length < 3) return false;
+    if (normPhrase.length < 3) continue;
     const spacelessPhrase = normPhrase.replace(/\s+/g, '');
-    return spacelessText.includes(spacelessPhrase) || reversedSpaceless.includes(spacelessPhrase);
-  });
+    if (
+      spacelessText.includes(spacelessPhrase) ||
+      reversedSpaceless.includes(spacelessPhrase)
+    ) {
+      return phrase;
+    }
+  }
+
+  return null;
 };
 
 // Escape regex special characters so banned words are matched literally.

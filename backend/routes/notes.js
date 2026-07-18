@@ -129,9 +129,10 @@ router.post('/', submitLimiter, async (req, res) => {
   // --- Profanity check ---
   try {
     const contentToCheck = `${to_name ?? ''} ${message} ${alias ?? ''}`;
-    if (await isOffensive(contentToCheck)) {
+    const banned = await isOffensive(contentToCheck);
+    if (banned) {
       return res.status(400).json({
-        error: "Oops your message has some words that we can't allow - Magmahalan lang po tayo :)",
+        error: `Oops, the word "${banned}" isn't allowed - Magmahalan lang po tayo :)`,
       });
     }
   } catch (err) {

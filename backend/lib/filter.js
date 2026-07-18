@@ -1,7 +1,6 @@
 // backend/lib/filter.js
 
 import { prisma } from './prisma.js';
-import natural from 'natural';
 
 let bannedWordsCache = [];
 let lastFetched = 0;
@@ -62,7 +61,7 @@ export const isOffensive = async (text) => {
   const bannedWords = await getBannedWords();
   const cleanText = normalizeText(text);
   
-  const tokenizer = new natural.WordTokenizer();
+  const tokenizer = { tokenize: (s) => s.split(/\s+/).filter(Boolean) };
   const tokens = tokenizer.tokenize(cleanText);
 
   // Check 1: Direct Token Match (Handles reversed and collapsed letters)

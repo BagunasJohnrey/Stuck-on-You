@@ -80,24 +80,28 @@ export const isOffensive = async (text) => {
 
   if (hasBannedToken) return true;
 
-  // Check 2: Substring Match for hidden words across the whole string
+  // Check 2: Word-boundary Match for hidden words across the whole string.
+  // Uses boundaries so a banned word only matches as a standalone word,
+  // not as a substring inside innocent words (e.g. "hell" must not match
+  // "hello"). Handles reversed/spacing tricks too.
   const spacelessText = cleanText.replace(/\s+/g, '');
   const reversedSpaceless = spacelessText.split('').reverse().join('');
 
-  const singleWords = bannedWords.filter(b => !b.includes(' '));
-  const phrases = bannedWords.filter(b => b.includes(' '));
+  const singleWords = bannedWords
+    .filter(b => !b.includes(' ') && b.length >= 3)
+    .map(escapeRegExp);
 
-  // Single-word check (existing behavior).
-  const hasBannedWord = singleWords.some(banned => {
-    if (banned.length < 3) return false;
-    return spacelessText.includes(banned) || reversedSpaceless.includes(banned);
-  });
-
-  if (hasBannedWord) return true;
+  if (singleWords.length > 0) {
+    const boundary = new RegExp(`(?:^|[^a-z])(${singleWords.join('|')})(?:$|[^a-z])`);
+    if (boundary.test(spacelessText) || boundary.test(reversedSpaceless)) {
+      return true;
+    }
+  }
 
   // Check 3: Multi-word phrase match (e.g. "mag kano", "putang ina").
   // Collapse spaces in both the phrase and the text so spacing tricks
   // (extra spaces, missing spaces) still match.
+  const phrases = bannedWords.filter(b => b.includes(' '));
   return phrases.some(phrase => {
     const normPhrase = phrase.replace(/\s+/g, ' ').trim();
     if (normPhrase.length < 3) return false;
@@ -105,3 +109,6 @@ export const isOffensive = async (text) => {
     return spacelessText.includes(spacelessPhrase) || reversedSpaceless.includes(spacelessPhrase);
   });
 };
+
+// Escape regex special characters so banned words are matched literally.
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

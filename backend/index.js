@@ -22,8 +22,13 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // Optimized CORS Configuration
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://stuck-on-you.vercel.app,http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: ['https://stuck-on-you.vercel.app', 'http://localhost:5173'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -54,18 +59,25 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: 'Something went wrong.' });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`Server listening at http://localhost:${PORT}`);
-});
-
-// Graceful shutdown: close the Prisma connection pool.
-const shutdown = async (signal) => {
-  console.log(`${signal} received, shutting down...`);
-  server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
+// Only start the HTTP server when running locally (not on Vercel serverless,
+// where the platform handles the HTTP layer and we just export the handler).
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`Server listening at http://localhost:${PORT}`);
   });
-};
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+  // Graceful shutdown: close the Prisma connection pool.
+  const shutdown = async (signal) => {
+    console.log(`${signal} received, shutting down...`);
+    server.close(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+// Export the Express app for Vercel serverless functions.
+export default app;
